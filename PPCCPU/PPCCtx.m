@@ -32,11 +32,11 @@ struct TypeSet {
     int32_t indexBaseCTR;
     int32_t lastCmplwi;
     Address foundSDA, foundSDA2;
-    NSMutableDictionary* localLabels;
+    NSMutableDictionary *localLabels;
     
     uint64_t typesToSetCapacity;
     uint64_t typesToSetCount;
-    struct TypeSet* typesToSet;
+    struct TypeSet *typesToSet;
 }
 
 - (instancetype)initWithCPU:(PPCCPU *)cpu andFile:(NSObject<HPDisassembledFile> *)file {
@@ -73,7 +73,7 @@ struct TypeSet {
         typesToSetCapacity *= 2;
         typesToSet = realloc(typesToSet, sizeof(struct TypeSet) * typesToSetCapacity);
     }
-    struct TypeSet* storage = &typesToSet[typesToSetCount];
+    struct TypeSet *storage = &typesToSet[typesToSetCount];
     storage->addr = addr;
     storage->size = size;
     storage->format = format;
@@ -375,7 +375,7 @@ static ByteType TypeForSize(u32 size)
     [localLabels removeAllObjects];
     
     for (uint64_t i = 0; i < typesToSetCount; ++i) {
-        struct TypeSet* storage = &typesToSet[i];
+        struct TypeSet *storage = &typesToSet[i];
         [_file setType:TypeForSize(storage->size) atVirtualAddress:(u32)storage->addr forLength:storage->size];
         [_file setFormat:storage->format forArgument:0 atVirtualAddress:(u32)storage->addr];
     }
@@ -476,9 +476,9 @@ static ByteType TypeForSize(u32 size)
     if (indexBaseCTR != ~0 && !strcmp(disasm->instruction.mnemonic, "bctr") && lastCmplwi) {
         uint32_t offset = 0;
         Address addr = [_file readUInt32AtVirtualAddress:(u32)indexBaseCTR];
-        NSMutableDictionary* labelDict = [NSMutableDictionary dictionaryWithCapacity:lastCmplwi+1];
+        NSMutableDictionary *labelDict = [NSMutableDictionary dictionaryWithCapacity:lastCmplwi+1];
         for (int32_t i = 0; i <= lastCmplwi; ++i) {
-            NSMutableArray* arr = [labelDict objectForKey:@(addr)];
+            NSMutableArray *arr = [labelDict objectForKey:@(addr)];
             if (!arr) {
                 arr = [NSMutableArray new];
                 [labelDict setObject:arr forKey:@(addr)];
@@ -493,23 +493,23 @@ static ByteType TypeForSize(u32 size)
         NSUInteger maxTargetCount = 0;
         for (id addr in labelDict) {
             [branches addObject:addr];
-            NSMutableArray* arr = [labelDict objectForKey:addr];
+            NSMutableArray *arr = [labelDict objectForKey:addr];
             maxTargetCount = MAX(maxTargetCount, arr.count);
         }
         NSUInteger maxDupeCount = 0;
         for (id addr in labelDict) {
             [branches addObject:addr];
-            NSMutableArray* arr = [labelDict objectForKey:addr];
+            NSMutableArray *arr = [labelDict objectForKey:addr];
             if (arr.count == maxTargetCount)
                 ++maxDupeCount;
         }
         for (id addr in labelDict) {
-            NSMutableArray* arr = [labelDict objectForKey:addr];
+            NSMutableArray *arr = [labelDict objectForKey:addr];
             if (maxDupeCount == 1 && arr.count == maxTargetCount)
                 [localLabels setObject:@"default" forKey:addr];
             else {
-                NSArray* sorted = [arr sortedArrayUsingSelector:@selector(compare:)];
-                NSMutableString* str = [NSMutableString stringWithString:@"case "];
+                NSArray *sorted = [arr sortedArrayUsingSelector:@selector(compare:)];
+                NSMutableString *str = [NSMutableString stringWithString:@"case "];
                 int prev = -1;
                 bool inRange = false;
                 for (id idx in sorted) {
@@ -765,6 +765,17 @@ static const char* CRNames[] =
 }
 
 - (BOOL)instructionOnlyLoadsAddress:(DisasmStruct *)disasmStruct {
+    return NO;
+}
+
+- (BOOL)instructionManipulatesFloat:(DisasmStruct *)disasmStruct {
+    for (int i = 0; i < DISASM_MAX_OPERANDS; ++i)
+        if (GetRegisterClass(disasmStruct->operand[i].type) == RegClass_FPRegister)
+            return YES;
+    return NO;
+}
+
+- (BOOL)instructionConditionCPUModeAtTargetAddress:(DisasmStruct *)disasmStruct resultCPUMode:(uint8_t *)cpuMode {
     return NO;
 }
 
