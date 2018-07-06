@@ -81,6 +81,10 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
     return @"0.0.2";
 }
 
+- (NSString *)commandLineIdentifier {
+    return @"ppc32";
+}
+
 - (NSArray *)cpuSubFamiliesForFamily:(NSString *)family {
     if ([family isEqualToString:@"ppc32"]) return @[@"gecko"];
     return nil;

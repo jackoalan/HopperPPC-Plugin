@@ -521,4 +521,8 @@ struct rel_relocation_entry
     return @"0.0.1";
 }
 
+- (NSString *)commandLineIdentifier {
+    return @"RelLinker";
+}
+
 @end

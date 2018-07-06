@@ -64,6 +64,10 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
     return @"0.6.0";
 }
 
+- (NSString *)commandLineIdentifier {
+    return @"dol";
+}
+
 - (CPUEndianess)endianess {
     return CPUEndianess_Big;
 }
