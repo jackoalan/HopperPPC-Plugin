@@ -36,6 +36,10 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
     return self;
 }
 
++ (int)sdkVersion {
+    return HOPPER_CURRENT_SDK_VERSION;
+}
+
 - (HopperUUID *)pluginUUID {
     return [_services UUIDWithString:@"b1906da2-7650-4db8-91cc-d9073b17aa47"];
 }

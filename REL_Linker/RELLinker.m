@@ -493,6 +493,10 @@ struct rel_relocation_entry
     return self;
 }
 
++ (int)sdkVersion {
+    return HOPPER_CURRENT_SDK_VERSION;
+}
+
 - (HopperUUID *)pluginUUID {
     return [_services UUIDWithString:@"42056020-EB6F-469F-8E78-425CC767B145"];
 }
