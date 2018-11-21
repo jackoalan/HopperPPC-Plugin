@@ -99,6 +99,11 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
     return 0;
 }
 
+- (int)integerWidthInBitsForCPUFamily:(NSString *)family andSubFamily:(NSString *)subFamily {
+    if ([family isEqualToString:@"ppc32"] && [subFamily isEqualToString:@"gecko"]) return 32;
+    return 0;
+}
+
 - (CPUEndianess)endianess {
     return CPUEndianess_Big;
 }

@@ -81,7 +81,7 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
 }
 
 // Returns an array of DetectedFileType objects.
-- (NSArray *)detectedTypesForData:(NSData *)data {
+- (NSArray<NSObject<HPDetectedFileType> *> *)detectedTypesForData:(NSData *)data ofFileNamed:(NSString *)filename {
     if ([data length] < 0x100) return @[];
 
     const void *bytes = (const void *)[data bytes];
@@ -302,6 +302,7 @@ static const struct SectionRange* FindSectionRange(const struct SectionRange* ra
     file.cpuFamily = @"ppc32";
     file.cpuSubFamily = @"gecko";
     [file setAddressSpaceWidthInBits:32];
+    [file setIntegerWidthInBits:32];
 
     uint32_t entryPoint = OSReadBigInt32(bytes, 0xE0);
     [file addEntryPoint:entryPoint];
@@ -404,7 +405,10 @@ static const struct SectionRange* FindSectionRange(const struct SectionRange* ra
     return DIS_OK;
 }
 
-- (NSData *)extractFromData:(NSData *)data usingDetectedFileType:(NSObject<HPDetectedFileType> *)fileType returnAdjustOffset:(uint64_t *)adjustOffset {
+- (NSData *)extractFromData:(NSData *)data
+      usingDetectedFileType:(NSObject<HPDetectedFileType> *)fileType
+         returnAdjustOffset:(uint64_t *)adjustOffset
+       returnAdjustFilename:(NSString **)newFilename {
     return nil;
 }
 
