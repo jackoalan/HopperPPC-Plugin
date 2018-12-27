@@ -157,7 +157,7 @@ struct rel_relocation_entry
     // Advertize REL sections to Hopper
     const struct rel_section_entry *sections = bytes + _bswap32(header->info.section_offset);
     uint32_t numSections = _bswap32(header->info.num_sections);
-    for (int i = 0; i < numSections; ++i) {
+    for (uint32_t i = 0; i < numSections; ++i) {
         const struct rel_section_entry *section = &sections[i];
         uint32_t fileOffset = _bswap32(section->file_offset);
         uint32_t sectionSize = _bswap32(section->size);
@@ -185,6 +185,8 @@ struct rel_relocation_entry
             }
         }
     }
+    
+    [_services.currentDocument endWaiting];
 }
 
 - (void)recursiveMakeProcedures:(NSObject<HPProcedure>*)proc file:(NSObject<HPDisassembledFile>*)file {
@@ -216,7 +218,7 @@ struct rel_relocation_entry
     uint32_t numSections = _bswap32(header->info.num_sections);
     NSMutableArray *textSections = [NSMutableArray arrayWithCapacity:4];
     NSMutableArray *dataSections = [NSMutableArray arrayWithCapacity:8];
-    for (int i = 0; i < numSections; ++i) {
+    for (uint32_t i = 0; i < numSections; ++i) {
         const struct rel_section_entry *section = &sections[i];
         uint32_t fileOffset = _bswap32(section->file_offset);
         uint32_t sectionSize = _bswap32(section->size);
@@ -233,7 +235,7 @@ struct rel_relocation_entry
     // Enumerate imports and relocations
     const struct rel_import_entry *imports = bytes + _bswap32(header->import_offset);
     uint32_t numImports = _bswap32(header->import_size) / 8;
-    for (int i = 0; i < numImports; ++i) {
+    for (uint32_t i = 0; i < numImports; ++i) {
         const struct rel_import_entry *import = &imports[i];
         uint32_t moduleId = _bswap32(import->module_id);
         NSObject<HPSegment> *moduleSeg = nil;
@@ -354,6 +356,7 @@ struct rel_relocation_entry
         }
     }
     
+    [_services.currentDocument endWaiting];
     [_services.currentDocument beginToWait:[NSString stringWithFormat:@"Analyzing %@", segment.segmentName]];
     
     // Apply relocated data
@@ -425,12 +428,14 @@ struct rel_relocation_entry
             }
         }
     }
+    
+    [_services.currentDocument endWaiting];
 }
 
 - (void)linkREL:(id)sender {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSObject<HPDocument> *doc = [_services currentDocument];
-        [doc beginToWait:@"Finding REL Data"];
+        //[doc beginToWait:@"Finding REL Data"];
         NSMutableArray<HPSegment> *linkedSegments = [NSMutableArray<HPSegment> new];
         bool found = false;
         for (NSObject<HPSegment> *seg in doc.disassembledFile.segments) {
@@ -468,7 +473,7 @@ struct rel_relocation_entry
                              alternateButton:nil
                                  otherButton:nil
                              informativeText:@"Unable to find \"unnamed segment\" containing REL data"];
-            [doc endWaiting];
+            //[doc endWaiting];
             return;
         }
         
@@ -482,7 +487,7 @@ struct rel_relocation_entry
             [self _linkREL:seg file:doc.disassembledFile];
         }
         
-        [doc endWaiting];
+        //[doc endWaiting];
     });
 }
 
