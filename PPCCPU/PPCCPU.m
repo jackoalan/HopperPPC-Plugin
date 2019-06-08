@@ -53,7 +53,7 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
     return [[PPCCtx alloc] initWithCPU:self andFile:file];
 }
 
-- (HopperUUID *)pluginUUID {
+- (id<HPHopperUUID>)pluginUUID {
     return [_services UUIDWithString:@"b9d7440a-2ad6-465b-a1e7-8696cf571a69"];
 }
 
