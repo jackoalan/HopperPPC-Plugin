@@ -113,9 +113,15 @@ struct TypeSet {
 }
 
 - (BOOL)hasProcedurePrologAt:(Address)address {
-    // procedures usually begin with a "stwu r1, -X(r1)" or "blr" instruction
+    // first check to see if previous address is "blr" or "b" or "bctr" or "rfi"
+    if ([_file hasCodeAt:address - 4]) {
+        uint32_t prevWord = [_file readUInt32AtVirtualAddress:address - 4];
+        if (prevWord == 0x4e800020 || (prevWord & 0xFC000003) == 0x48000000 || prevWord == 0x4e800420 || prevWord == 0x4c000064)
+            return true;
+    }
+    // procedures usually begin with a "stwu r1, -X(r1)", "blr", or "b" instruction
     uint32_t word = [_file readUInt32AtVirtualAddress:address];
-    return (word & 0xffff8000) == 0x94218000 || word == 0x4e800020;
+    return (word & 0xffff8000) == 0x94218000 /*|| word == 0x4e800020 || (word & 0xFC000003) == 0x48000000*/;
 }
 
 - (NSUInteger)detectedPaddingLengthAt:(Address)address {
@@ -469,7 +475,7 @@ static ByteType TypeForSize(u32 size)
     return NO;
 }
 
-- (void)performBranchesAnalysis:(DisasmStruct *)disasm computingNextAddress:(Address *)next andBranches:(NSMutableArray<NSNumber *> *)branches forProcedure:(NSObject<HPProcedure> *)procedure basicBlock:(NSObject<HPBasicBlock> *)basicBlock ofSegment:(NSObject<HPSegment> *)segment calledAddresses:(NSMutableArray<NSNumber *> *)calledAddresses callsites:(NSMutableArray<NSNumber *> *)callSitesAddresses {
+- (void)performBranchesAnalysis:(DisasmStruct *)disasm computingNextAddress:(Address *)next andBranches:(NSMutableArray<NSNumber *> *)branches forProcedure:(NSObject<HPProcedure> *)procedure basicBlock:(NSObject<HPBasicBlock> *)basicBlock ofSegment:(NSObject<HPSegment> *)segment calledAddresses:(NSMutableArray<NSObject<HPCallDestination> *> *)calledAddresses callsites:(NSMutableArray<NSNumber *> *)callSitesAddresses {
     //printf("performBranchesAnalysis %08X %s %p\n", (u32)disasm->virtualAddr, disasm->instruction.mnemonic, procedure);
     
     // Switch statement
@@ -539,14 +545,15 @@ static ByteType TypeForSize(u32 size)
         return;
     }
     
-    if (disasm->instruction.branchType == DISASM_BRANCH_CALL) {
-        [callSitesAddresses addObject:@(disasm->instruction.addressValue)];
-        *next = disasm->virtualAddr + 4;
-    } else if (disasm->instruction.branchType == DISASM_BRANCH_RET) {
+    if (disasm->instruction.branchType == DISASM_BRANCH_RET) {
         *next = BAD_ADDRESS;
-    } else {
-        [branches addObject:@(disasm->instruction.addressValue)];
-        *next = disasm->virtualAddr + 4;
+    } else if (disasm->instruction.branchType == DISASM_BRANCH_JMP) {
+        if (disasm->instruction.addressValue < procedure.entryPoint) {
+            // Convert jump to call if jumps prior to the procedure entry point
+            [branches removeAllObjects];
+            [callSitesAddresses addObject:@(disasm->instruction.addressValue)];
+        }
+        *next = BAD_ADDRESS;
     }
     //printf("%08X NEXT %08X %d\n", disasm->virtualAddr, *next, disasm->instruction.branchType);
 }

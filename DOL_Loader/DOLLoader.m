@@ -331,77 +331,106 @@ static const struct SectionRange* FindSectionRange(const struct SectionRange* ra
 }
 
 - (FileLoaderLoadingStatus)loadDebugData:(NSData *)data forFile:(NSObject<HPDisassembledFile> *)file usingCallback:(FileLoadingCallbackInfo)callback {
-    char* mutData = malloc(data.length + 1);
-    [data getBytes:mutData length:data.length];
-    mutData[data.length] = '\0';
-    const char* sep = "\n";
-    const char* sep2 = " ";
-    char *line, *word, *brkt, *brkb;
-    int wordIdx;
-    for (line = strtok_r(mutData, sep, &brkt);
-         line;
-         line = strtok_r(NULL, sep, &brkt))
-    {
-        Address address;
-        const char* type;
-        long arrCount;
-        
-        for (word = strtok_r(line, sep2, &brkb), wordIdx = 0;
-             word;
-             word = strtok_r(NULL, sep2, &brkb), ++wordIdx)
-        {
-            switch (wordIdx)
-            {
-            case 0:
-                address = (Address)strtoul(word, NULL, 16);
-                break;
-            case 1:
-                type = word;
-                break;
-            case 2:
-                arrCount = strtol(word, NULL, 16);
-                break;
-            }
-            if (wordIdx == 2) {
-                word += strlen(word) + 1;
-                break;
-            }
-        }
-        
-        if (!strcmp(type, "FUNC")) {
-            if (![file hasProcedureAt:address])
+    const void* buf = [data bytes];
+    if (OSReadBigInt32(buf, 0) == 0) {
+        uint32_t str_off = OSReadBigInt32(buf, 16);
+        uint32_t str_len = OSReadBigInt32(buf, 20);
+        uint32_t tab_off = OSReadBigInt32(buf, 64);
+        uint32_t tab_len = OSReadBigInt32(buf, 68);
+        uint32_t strs_off = OSReadBigInt32(buf, 72);
+        NSLog(@"SEL for %.*s", str_len, buf + str_off);
+
+        const void* str_buf = buf + strs_off;
+
+        const void* ptr = buf + tab_off;
+        for (uint32_t i = 0; i < tab_len; i += 16, ptr += 16) {
+            uint32_t str_off = OSReadBigInt32(ptr, 0);
+            uint32_t sec_off = OSReadBigInt32(ptr, 4);
+            uint32_t sec_idx = OSReadBigInt32(ptr, 8);
+
+            if (sec_idx + 1 >= file.segmentCount)
+                continue;
+            NSObject<HPSegment> *segment = file.segments[sec_idx + 1];
+            Address secStart = segment.startAddress;
+            Address address = secStart + sec_off;
+            if (segment.sections[0].pureCodeSection && ![file hasProcedureAt:address])
                 [file makeProcedureAt:address];
-        } else if (!strcmp(type, "STR")) {
-            [file setType:Type_ASCII atVirtualAddress:address forLength:arrCount];
-        } else if (!strcmp(type, "WSTR")) {
-            [file setType:Type_Unicode atVirtualAddress:address forLength:arrCount];
-        } else if (!strcmp(type, "BYTE")) {
-            [file setType:Type_Int8 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 1];
-        } else if (!strcmp(type, "WORD")) {
-            [file setType:Type_Int16 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 2];
-        } else if (!strcmp(type, "DWORD")) {
-            [file setType:Type_Int32 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 4];
-        } else if (!strcmp(type, "QWORD")) {
-            [file setType:Type_Int64 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 8];
-        } else if (!strcmp(type, "FLOAT")) {
-            [file setType:Type_Int32 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 4];
-            [file setFormat:Format_Float forArgument:0 atVirtualAddress:address];
-        } else if (!strcmp(type, "DOUBLE")) {
-            [file setType:Type_Int64 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 8];
-            [file setFormat:Format_Float forArgument:0 atVirtualAddress:address];
-        } else if (!strcmp(type, "LVAR")) {
-            NSObject<HPProcedure> *proc = [file procedureAt:address];
-            if (!proc)
-                proc = [file makeProcedureAt:address];
-            [proc setVariableName:@(word) forDisplacement:arrCount];
-            continue;
-        } else if (!strcmp(type, "COMM")) {
-            [file setInlineComment:@(word) atVirtualAddress:address reason:CCReason_User];
-            continue;
+            NSLog(@"Imported %s %d %d", str_buf + str_off, sec_off, sec_idx);
+            [file setName:@((const char*)str_buf + str_off) forVirtualAddress:address reason:NCReason_User];
         }
-        [file setName:@(word) forVirtualAddress:address reason:NCReason_User];
+    } else {
+        char* mutData = malloc(data.length + 1);
+        [data getBytes:mutData length:data.length];
+        mutData[data.length] = '\0';
+        const char* sep = "\n";
+        const char* sep2 = " ";
+        char *line, *word, *brkt, *brkb;
+        int wordIdx;
+        for (line = strtok_r(mutData, sep, &brkt);
+             line;
+             line = strtok_r(NULL, sep, &brkt))
+        {
+            Address address;
+            const char* type;
+            long arrCount;
+
+            for (word = strtok_r(line, sep2, &brkb), wordIdx = 0;
+                 word;
+                 word = strtok_r(NULL, sep2, &brkb), ++wordIdx)
+            {
+                switch (wordIdx)
+                {
+                case 0:
+                    address = (Address)strtoul(word, NULL, 16);
+                    break;
+                case 1:
+                    type = word;
+                    break;
+                case 2:
+                    arrCount = strtol(word, NULL, 16);
+                    break;
+                }
+                if (wordIdx == 2) {
+                    word += strlen(word) + 1;
+                    break;
+                }
+            }
+
+            if (!strcmp(type, "FUNC")) {
+                if (![file hasProcedureAt:address])
+                    [file makeProcedureAt:address];
+            } else if (!strcmp(type, "STR")) {
+                [file setType:Type_ASCII atVirtualAddress:address forLength:arrCount];
+            } else if (!strcmp(type, "WSTR")) {
+                [file setType:Type_Unicode atVirtualAddress:address forLength:arrCount];
+            } else if (!strcmp(type, "BYTE")) {
+                [file setType:Type_Int8 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 1];
+            } else if (!strcmp(type, "WORD")) {
+                [file setType:Type_Int16 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 2];
+            } else if (!strcmp(type, "DWORD")) {
+                [file setType:Type_Int32 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 4];
+            } else if (!strcmp(type, "QWORD")) {
+                [file setType:Type_Int64 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 8];
+            } else if (!strcmp(type, "FLOAT")) {
+                [file setType:Type_Int32 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 4];
+                [file setFormat:Format_Float forArgument:0 atVirtualAddress:address];
+            } else if (!strcmp(type, "DOUBLE")) {
+                [file setType:Type_Int64 atVirtualAddress:address forLength:(arrCount ? arrCount : 1) * 8];
+                [file setFormat:Format_Float forArgument:0 atVirtualAddress:address];
+            } else if (!strcmp(type, "LVAR")) {
+                NSObject<HPProcedure> *proc = [file procedureAt:address];
+                if (!proc)
+                    proc = [file makeProcedureAt:address];
+                [proc setVariableName:@(word) forDisplacement:arrCount];
+                continue;
+            } else if (!strcmp(type, "COMM")) {
+                [file setInlineComment:@(word) atVirtualAddress:address reason:CCReason_User];
+                continue;
+            }
+            [file setName:@(word) forVirtualAddress:address reason:NCReason_User];
+        }
+        free(mutData);
     }
-    free(mutData);
     return DIS_OK;
 }
 

@@ -878,6 +878,7 @@ static void bcx(int Disp, int L)
         if(b_ctr[bo >> 1])
         {
             format_mnemonic("b%s%s%s%c", b_ctr[bo >> 1], r, b_opt[Disp ? AALK : LK], y);
+            o->disasm->instruction.branchType = DISASM_BRANCH_JECXZ;
             if(!(bo & 16))
             {
                 ptr += sprintf(ptr, "%i", bi);
@@ -899,6 +900,7 @@ static void bcx(int Disp, int L)
 
     // Not simplified standard form
     format_mnemonic("bc%s%s", r, b_opt[Disp ? AALK : LK]);
+    o->disasm->instruction.branchType = DISASM_BRANCH_JC;
     ptr += sprintf(ptr, "%i" COMMA "%i", bo, bi);
     DISASM_PPC_BUILD_IMM_OP(bo, false);
     DISASM_PPC_BUILD_IMM_OP(bi, false);
