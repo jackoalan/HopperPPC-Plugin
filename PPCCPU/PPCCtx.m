@@ -32,6 +32,7 @@ struct TypeSet {
     int32_t indexBaseCTR;
     int32_t lastCmplwi;
     Address foundSDA, foundSDA2;
+    Address notProlog;
     NSMutableDictionary *localLabels;
     
     uint64_t typesToSetCapacity;
@@ -55,6 +56,7 @@ struct TypeSet {
         lastCmplwi = 0;
         foundSDA = BAD_ADDRESS;
         foundSDA2 = BAD_ADDRESS;
+        notProlog = BAD_ADDRESS;
         localLabels = [NSMutableDictionary new];
         
         typesToSetCapacity = 256;
@@ -113,6 +115,11 @@ struct TypeSet {
 }
 
 - (BOOL)hasProcedurePrologAt:(Address)address {
+    //printf("hasProcedurePrologAt:%08X\n", address);
+    // this is updated during procedure analysis so local branch targets can override
+    // prolog status to prevent creation of new procedures that are known to be jumped to locally.
+    if (address == notProlog)
+        return false;
     // first check to see if previous address is "blr" or "b" or "bctr" or "rfi"
     if ([_file hasCodeAt:address - 4]) {
         uint32_t prevWord = [_file readUInt32AtVirtualAddress:address - 4];
@@ -157,8 +164,22 @@ struct TypeSet {
     _trackingLis = true;
 }
 
+static BOOL ProcedureHasBasicBlockAfter(NSObject<HPProcedure> *procedure, Address address) {
+    for (NSUInteger i = 0; i < procedure.basicBlockCount; ++i) {
+        NSObject<HPBasicBlock> *bb = [procedure basicBlockAtIndex:i];
+        if (bb.from >= address)
+            return true;
+    }
+    return false;
+}
+
 - (void)performProcedureAnalysis:(NSObject<HPProcedure> *)procedure basicBlock:(NSObject<HPBasicBlock> *)basicBlock disasm:(DisasmStruct *)disasm {
-    //printf("performProcedureAnalysis %p\n", procedure);
+    //printf("performProcedureAnalysis %p %08X\n", procedure, disasm->virtualAddr);
+    if (disasm->instruction.branchType == DISASM_BRANCH_JMP &&
+        disasm->instruction.addressValue >= procedure.entryPoint &&
+        ProcedureHasBasicBlockAfter(procedure, disasm->instruction.addressValue)) {
+        notProlog = disasm->instruction.addressValue;
+    }
 }
 
 static NSString* MakeNumericComment(u32 val)
@@ -386,9 +407,11 @@ static ByteType TypeForSize(u32 size)
         [_file setFormat:storage->format forArgument:0 atVirtualAddress:(u32)storage->addr];
     }
     typesToSetCount = 0;
+    notProlog = BAD_ADDRESS;
 }
 
 - (Address)getThunkDestinationForInstructionAt:(Address)address {
+    //printf("getThunkDestinationForInstructionAt:%08X\n", address);
     return BAD_ADDRESS;
 }
 
