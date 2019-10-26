@@ -534,4 +534,8 @@ struct rel_relocation_entry
     return @"RelLinker";
 }
 
+- (NSArray<NSString *> *)commandLineIdentifiers {
+    return @[@"RelLinker"];
+}
+
 @end

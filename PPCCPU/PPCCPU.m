@@ -85,8 +85,12 @@ static void OSWriteBigInt32(void *address, uintptr_t offset, int32_t data) {
     return @"0.0.2";
 }
 
-- (NSString *)commandLineIdentifier {
+- (NSString *) commandLineIdentifier {
     return @"ppc32";
+}
+
+- (NSArray<NSString *> *) commandLineIdentifiers {
+    return @[@"ppc32"];
 }
 
 - (NSArray *)cpuSubFamiliesForFamily:(NSString *)family {
